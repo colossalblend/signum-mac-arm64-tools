@@ -107,11 +107,33 @@ jobs:
           # Снимаем сторожевой хук: защита переделана на пустую страницу между
           # мостами, а выход за границу ловит сам Unicorn — без потери скорости.
           python3 - <<'PY'
-          import io, re
+          import io
           p = "mescal/emulator/bridge.go"
           s = io.open(p, encoding="utf-8").read()
-          s = re.sub(r"\thook, err := uc\.HookAdd\(hookMT.*?\n\t\}\n", "\tvar hook unicorn.Hook\n", s, flags=re.S)
-          s = s.replace("nextBridgeAddr += size", "nextBridgeAddr += size + pageSize")
+          old = """	hookMT := unicorn.HOOK_MEM_READ | unicorn.HOOK_MEM_WRITE
+
+	hookCB := func(uc unicorn.Unicorn, access int, addr uint64, size int, value int64) {
+		err := fmt.Errorf("emulator bridge segmentation fault: 0x%016X", addr)
+		panic(err)
+	}
+
+	hookBA := addr + uint64(len(data))
+
+	hookEA := nextBridgeAddr - 1
+
+	hook, err := uc.HookAdd(hookMT, hookCB, hookBA, hookEA)
+	if err != nil {
+		return nil, err
+	}
+"""
+          if old not in s:
+              raise SystemExit("bridge.go: блок HookAdd не найден, патч не применить")
+          s = s.replace(old, "\tvar hook unicorn.Hook\n")
+          s = s.replace("nextBridgeAddr += size", "nextBridgeAddr += size + pageSize", 1)
+          s = s.replace(
+              "\tif err := b.uc.HookDel(b.hook); err != nil {\n\t\treturn err\n\t}\n",
+              "\t_ = b.hook\n",
+          )
           io.open(p, "w", encoding="utf-8", newline="").write(s)
           print("сторож снят")
           PY
