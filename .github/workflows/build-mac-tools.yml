@@ -191,12 +191,14 @@ jobs:
           git clone --depth 1 https://github.com/zhlynn/zsign.git /tmp/zsign
           cd /tmp/zsign
           OPENSSL=$(brew --prefix openssl@3)
-          g++ -std=c++11 -O3 -o /tmp/zsign-bin \
-            *.cpp common/*.cpp \
-            -I"$OPENSSL/include" -L"$OPENSSL/lib" \
-            -lcrypto -lz -DDISABLE_ZSIGN_MAIN=0 2>&1 | tail -5 || \
-          make 2>&1 | tail -10
-          [ -f /tmp/zsign-bin ] || cp ./zsign /tmp/zsign-bin
+          # Globs in a pipeline under `set -e` не раскрываются / прячут код
+          # ошибки — собираем через cmake, как в самом репозитории zsign.
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
+            -DOPENSSL_ROOT_DIR="$OPENSSL"
+          cmake --build build --config Release -j4
+          BIN=$(find build . -maxdepth 3 -type f -name zsign | head -1)
+          [ -n "$BIN" ] && [ -f "$BIN" ]
+          cp "$BIN" /tmp/zsign-bin
           OUT="$GITHUB_WORKSPACE/out/macos-arm64/support"
           mkdir -p "$OUT"
           cp /tmp/zsign-bin "$OUT/zsign"
