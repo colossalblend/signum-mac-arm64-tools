@@ -135,6 +135,8 @@ jobs:
               "\tif err := b.uc.HookDel(b.hook); err != nil {\n\t\treturn err\n\t}\n",
               "\t_ = b.hook\n",
           )
+          if "fmt." not in s:
+              s = s.replace('\t"fmt"\n', "")
           io.open(p, "w", encoding="utf-8", newline="").write(s)
           print("сторож снят")
           PY
@@ -182,7 +184,7 @@ jobs:
       # Подпись своим сертификатом. На macOS и Linux его вообще не было в
       # пакете — код искал его в PATH, где у обычного человека его нет.
       - name: zsign
-        if: inputs.what == 'all' || inputs.what == 'zsign'
+        if: always() && (inputs.what == 'all' || inputs.what == 'zsign')
         run: |
           set -eux
           brew install openssl@3 minizip
@@ -238,12 +240,14 @@ jobs:
           lipo -archs "$OUT/zsign"
 
       - name: Собрать сведения о сборке
+        if: always()
         run: |
           cd "$GITHUB_WORKSPACE/out"
           find . -type f -exec shasum -a 256 {} \; > SHA256SUMS.txt
           cat SHA256SUMS.txt
 
       - name: Выложить результат
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: signum-macos-arm64-tools
