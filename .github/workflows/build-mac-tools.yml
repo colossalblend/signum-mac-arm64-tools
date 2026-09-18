@@ -189,14 +189,11 @@ jobs:
           set -eux
           brew install openssl@3 minizip
           git clone --depth 1 https://github.com/zhlynn/zsign.git /tmp/zsign
-          cd /tmp/zsign
+          brew install pkg-config openssl@3
           OPENSSL=$(brew --prefix openssl@3)
-          # Globs in a pipeline under `set -e` не раскрываются / прячут код
-          # ошибки — собираем через cmake, как в самом репозитории zsign.
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-            -DOPENSSL_ROOT_DIR="$OPENSSL"
-          cmake --build build --config Release -j4
-          BIN=$(find build . -maxdepth 3 -type f -name zsign | head -1)
+          export PKG_CONFIG_PATH="$OPENSSL/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+          make -C /tmp/zsign/build/macos -j4
+          BIN=$(find /tmp/zsign/build/macos /tmp/zsign -maxdepth 3 -type f -name zsign | head -1)
           [ -n "$BIN" ] && [ -f "$BIN" ]
           cp "$BIN" /tmp/zsign-bin
           OUT="$GITHUB_WORKSPACE/out/macos-arm64/support"
@@ -244,6 +241,7 @@ jobs:
       - name: Собрать сведения о сборке
         if: always()
         run: |
+          mkdir -p "$GITHUB_WORKSPACE/out"
           cd "$GITHUB_WORKSPACE/out"
           find . -type f -exec shasum -a 256 {} \; > SHA256SUMS.txt
           cat SHA256SUMS.txt
