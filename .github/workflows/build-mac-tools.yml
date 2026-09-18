@@ -110,22 +110,23 @@ jobs:
           import io
           p = "mescal/emulator/bridge.go"
           s = io.open(p, encoding="utf-8").read()
-          old = """	hookMT := unicorn.HOOK_MEM_READ | unicorn.HOOK_MEM_WRITE
-
-	hookCB := func(uc unicorn.Unicorn, access int, addr uint64, size int, value int64) {
-		err := fmt.Errorf("emulator bridge segmentation fault: 0x%016X", addr)
-		panic(err)
-	}
-
-	hookBA := addr + uint64(len(data))
-
-	hookEA := nextBridgeAddr - 1
-
-	hook, err := uc.HookAdd(hookMT, hookCB, hookBA, hookEA)
-	if err != nil {
-		return nil, err
-	}
-"""
+          old = (
+              "\thookMT := unicorn.HOOK_MEM_READ | unicorn.HOOK_MEM_WRITE\n"
+              "\n"
+              "\thookCB := func(uc unicorn.Unicorn, access int, addr uint64, size int, value int64) {\n"
+              "\t\terr := fmt.Errorf(\"emulator bridge segmentation fault: 0x%016X\", addr)\n"
+              "\t\tpanic(err)\n"
+              "\t}\n"
+              "\n"
+              "\thookBA := addr + uint64(len(data))\n"
+              "\n"
+              "\thookEA := nextBridgeAddr - 1\n"
+              "\n"
+              "\thook, err := uc.HookAdd(hookMT, hookCB, hookBA, hookEA)\n"
+              "\tif err != nil {\n"
+              "\t\treturn nil, err\n"
+              "\t}\n"
+          )
           if old not in s:
               raise SystemExit("bridge.go: блок HookAdd не найден, патч не применить")
           s = s.replace(old, "\tvar hook unicorn.Hook\n")
